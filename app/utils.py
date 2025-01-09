@@ -1,6 +1,7 @@
 import os
 import logging
 from pathlib import Path
+from typing import Union
 from dotenv import load_dotenv
 
 def setup_logger(file: str) -> logging.Logger:
@@ -48,7 +49,7 @@ def get_env_vars() -> tuple[str, str, str]:
     
     return telegram_token, oauth_token, folder_id
 
-def ensure_dir(path: str | Path) -> Path:
+def ensure_dir(path: Union[str, Path]) -> Path:
     """Создание директории, если она не существует"""
     dir_path = Path(path)
     dir_path.mkdir(exist_ok=True)
