@@ -1,31 +1,17 @@
 import os
-import logging
-from pathlib import Path
 from datetime import datetime
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
 
 from app.image_generator import ImageGenerator
-
-# Создаем директорию для логов перед настройкой логирования
-Path("logs").mkdir(exist_ok=True)
+from app.utils import setup_logger, get_env_vars
 
 # Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.FileHandler('logs/bot.log', mode='w'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = setup_logger(__file__)
 
 # Загрузка переменных окружения
-load_dotenv()
-TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_TOKEN, _, _ = get_env_vars()
 
 # Создание генератора изображений
 generator = ImageGenerator()
@@ -80,7 +66,7 @@ async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Запуск бота"""
     # Создаем приложение
-    application = Application.builder().token(TOKEN).build()
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
 
     # Добавляем обработчики
     application.add_handler(CommandHandler("start", start))

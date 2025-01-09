@@ -1,31 +1,19 @@
 import os
 import base64
-import logging
 import asyncio
+import shutil
 from pathlib import Path
 from datetime import datetime
 
 import aiohttp
-from dotenv import load_dotenv
 
-# Создаем директорию для логов перед настройкой логирования
-Path("logs").mkdir(exist_ok=True)
+from app.utils import setup_logger, get_env_vars, ensure_dir
 
-# Базовая настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/image_generator.log', mode='w'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Настройка логирования
+logger = setup_logger(__file__)
 
 # Загрузка переменных окружения
-load_dotenv()
-OAUTH_TOKEN = os.getenv('YANDEX_OAUTH_TOKEN')
-FOLDER_ID = os.getenv('YANDEX_FOLDER_ID')
+_, OAUTH_TOKEN, FOLDER_ID = get_env_vars()
 
 # URL API
 API_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync"
@@ -35,8 +23,10 @@ IAM_URL = "https://iam.api.cloud.yandex.net/iam/v1/tokens"
 class ImageGenerator:
     def __init__(self):
         self.headers = None
-        self.temp_dir = Path("temp")
-        self.temp_dir.mkdir(exist_ok=True)
+        # Создаем структуру временных директорий
+        self.temp_dir = ensure_dir("temp")
+        self.temp_images = ensure_dir(self.temp_dir / "images")
+        self.images_dir = ensure_dir("images")
 
     async def _get_iam_token(self) -> str:
         """Получение IAM токена через OAuth токен"""
@@ -66,7 +56,12 @@ class ImageGenerator:
     async def generate_image(self, prompt: str) -> str:
         """Генерация изображения по промпту"""
         await self._ensure_valid_token()
-        temp_path = self.temp_dir / f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.urandom(4).hex()}.png"
+        
+        # Создаем пути для временного и постоянного файлов
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_id = os.urandom(4).hex()
+        temp_path = self.temp_images / f"temp_{timestamp}_{file_id}.png"
+        image_path = self.images_dir / f"image_{timestamp}_{file_id}.png"
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -88,9 +83,13 @@ class ImageGenerator:
                 image_data = await self._wait_for_result(session, operation_id)
                 logger.info("Получены данные изображения")
                 
-                # Сохранение изображения
+                # Сохранение изображения во временный файл
                 await self._save_image(image_data, temp_path)
-                logger.info(f"Изображение сохранено: {temp_path}")
+                logger.info(f"Изображение сохранено во временный файл: {temp_path}")
+                
+                # Копируем во постоянное хранилище
+                shutil.copy2(temp_path, image_path)
+                logger.info(f"Изображение сохранено в архив: {image_path}")
                 
                 return str(temp_path)
 
