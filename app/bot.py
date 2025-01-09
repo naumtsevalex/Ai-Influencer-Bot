@@ -9,9 +9,8 @@ from dotenv import load_dotenv
 
 from app.image_generator import ImageGenerator
 
-# Создаем нужные директории
-Path("logs").mkdir(parents=True, exist_ok=True)
-Path("temp").mkdir(exist_ok=True)
+# Создаем директорию для логов перед настройкой логирования
+Path("logs").mkdir(exist_ok=True)
 
 # Настройка логирования
 logging.basicConfig(
